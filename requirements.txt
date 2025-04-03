@@ -1,0 +1,9 @@
+aiohttp==3.9.1
+beautifulsoup4==4.12.3
+lxml==5.1.0
+black==25.1.0
+pre_commit==4.0.1
+celery
+redis
+mysql-connector-python
+clickhouse-connect
