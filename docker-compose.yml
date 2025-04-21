@@ -27,7 +27,6 @@ services:
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
-      # монтировать сокет Docker Desktop не нужно
 
 volumes:
   pgdata:

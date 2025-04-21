@@ -30,10 +30,15 @@ pipeline {
     stage('Transform & Load') {
       steps {
         sh '''
-          echo "Installing Python dependencies..."
+          echo "Creating and activating virtualenv..."
+          python -m venv venv
+          . venv/bin/activate
+
+          echo "Upgrading pip and installing dependencies..."
           pip install --upgrade pip
           pip install psycopg2-binary python-dateutil
-          echo "Running aggregation..."
+
+          echo "Running aggregation script..."
           python aggregate.py "$START" "$END" report.csv
         '''
       }
