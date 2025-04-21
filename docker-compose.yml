@@ -1,4 +1,3 @@
-
 services:
   forum-db:
     image: postgres:13
@@ -20,17 +19,17 @@ services:
   jenkins:
     image: jenkins/jenkins:lts
     container_name: jenkins
-
     privileged: true
-    volumes:
-      - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       forum-db:
         condition: service_healthy
     ports:
       - "8080:8080"
       - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
 
 volumes:
   pgdata:

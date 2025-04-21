@@ -24,10 +24,8 @@ pipeline {
         )]) {
           sh '''
             echo "Extracting logs..."
-            PGPASSWORD=$DB_PSWD psql \
-              -h $DB_HOST -U $DB_USER -d $DB_NAME \
-              -c "COPY logs TO STDOUT WITH CSV HEADER" \
-            > logs_raw.csv
+            PGPASSWORD=$DB_PSWD psql -h $DB_HOST -U $DB_USER -d $DB_NAME \
+              -c "COPY logs TO STDOUT WITH CSV HEADER" > logs_raw.csv
           '''
         }
       }
@@ -42,7 +40,7 @@ pipeline {
       }
       steps {
         sh '''
-          echo "Installing Python deps and running aggregator..."
+          echo "Installing Python deps and running aggregation..."
           pip install psycopg2-binary python-dateutil
           python aggregate.py "$START" "$END" report.csv
         '''
