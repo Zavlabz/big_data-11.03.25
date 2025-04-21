@@ -15,17 +15,23 @@ stage('Extract') {
 
 stage('Transform & Load') {
   steps {
+    // Делаем всё через один shell‑скрипт
     sh '''
-      # Создаём виртуальное окружение
+      # 1. Создаём виртуальное окружение
       python3 -m venv venv
-      # Активируем его
+      # 2. Активируем его
       . venv/bin/activate
-      # Устанавливаем зависимости внутрь venv
+      # 3. Обновляем pip и ставим зависимости внутрь venv
       pip install --upgrade pip
       pip install psycopg2-binary python-dateutil
-      # Запускаем ваш агрегатор
+      # 4. Запускаем ваш агрегатор
       python aggregate.py "$START" "$END" report.csv
     '''
+  }
+  post {
+    success {
+      archiveArtifacts artifacts: 'report.csv', fingerprint: true
+    }
   }
 }
 
