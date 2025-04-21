@@ -1,14 +1,27 @@
 import psycopg2, csv, sys
 from dateutil import parser
+import os
 
 def main(start_str, end_str, out_path='report.csv'):
     start = parser.parse(start_str)
     end   = parser.parse(end_str)
 
-    conn = psycopg2.connect(
-        dbname='forum_logs', user='admin', password='secret',
-        host='localhost', port=5432
-    )
+
+
+    def main(start_date, end_date, out_path):
+        db_host = os.getenv('DB_HOST', 'localhost')
+        db_user = os.getenv('DB_USER', 'admin')
+        db_password = os.getenv('DB_PASSWORD', 'secret')
+        db_name = os.getenv('DB_NAME', 'forum_logs')
+        db_port = os.getenv('DB_PORT', '5432')
+
+        conn = psycopg2.connect(
+            dbname=db_name,
+            user=db_user,
+            password=db_password,
+            host=db_host,
+            port=db_port
+        )
     cur = conn.cursor()
 
     query = """
