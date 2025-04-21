@@ -1,8 +1,6 @@
-version: '3.8'
 
 services:
-  # Сервис баз
-  db:
+  forum-db:
     image: postgres:13
     container_name: forum-db
     environment:
@@ -19,19 +17,20 @@ services:
       timeout: 5s
       retries: 5
 
-  #enkins
   jenkins:
     image: jenkins/jenkins:lts
     container_name: jenkins
+
+    privileged: true
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      db:
+      forum-db:
         condition: service_healthy
     ports:
       - "8080:8080"
       - "50000:50000"
-
-    volumes:
-      - jenkins_home:/var/jenkins_home
 
 volumes:
   pgdata:

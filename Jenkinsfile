@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    DB_HOST = 'forum-db'     // имя вашего Postgres‑сервиса из docker-compose
+    DB_HOST = 'forum-db'
     DB_NAME = 'forum_logs'
     START   = '2023-01-01'
     END     = '2023-01-31'
@@ -10,6 +10,12 @@ pipeline {
 
   stages {
     stage('Extract') {
+      agent {
+        docker {
+          image 'postgres:13'
+          args  '--network pythonproject6_default'
+        }
+      }
       steps {
         withCredentials([usernamePassword(
           credentialsId: 'etl-db',
@@ -17,7 +23,7 @@ pipeline {
           passwordVariable: 'DB_PSWD'
         )]) {
           sh '''
-            echo "Extracting logs to logs_raw.csv..."
+            echo "Extracting logs..."
             PGPASSWORD=$DB_PSWD psql \
               -h $DB_HOST -U $DB_USER -d $DB_NAME \
               -c "COPY logs TO STDOUT WITH CSV HEADER" \
@@ -28,19 +34,16 @@ pipeline {
     }
 
     stage('Transform & Load') {
-      // Весь этот stage будет выполняться в контейнере python:3.9-slim
       agent {
         docker {
           image 'python:3.9-slim'
-          // Подключаем к той же сети, что и форум‑БД
           args  '--network pythonproject6_default'
         }
       }
       steps {
         sh '''
-          echo "Installing Python dependencies..."
+          echo "Installing Python deps and running aggregator..."
           pip install psycopg2-binary python-dateutil
-          echo "Running aggregation script..."
           python aggregate.py "$START" "$END" report.csv
         '''
       }
