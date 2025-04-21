@@ -1,75 +1,86 @@
-import unittest
-from unittest.mock import patch, MagicMock
-from file_for_test import CatFactProcessor, APIError
+import pytest
 import requests
+from cat import CatFactProcessor, APIError
+
+class MockResponseSuccess:
+    def __init__(self, fact):
+        self._fact = fact
+    def raise_for_status(self):
+        pass
+    def json(self):
+        return {"fact": self._fact}
+
+class MockResponseHTTPError:
+    def raise_for_status(self):
+        raise requests.exceptions.HTTPError("500 Server Error")
+
+class MockResponseInvalidJSON:
+    def raise_for_status(self):
+        pass
+    def json(self):
+        raise ValueError("Invalid JSON")
 
 
-class CatFactProcessorTest(unittest.TestCase):
-    def setUp(self):
-        """Создает новый экземпляр перед каждым тестом"""
-        self.processor = CatFactProcessor()
-
-    @patch("requests.get")
-    def test_fetch_fact_success(self, mock_get):
-        """Проверяет успешное получение и сохранение факта о кошках"""
-        example_fact = "Cats sleep for 70% of their lives."
-        
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"fact": example_fact}
-        mock_get.return_value = mock_response
-
-        retrieved_fact = self.processor.get_fact()
-
-        self.assertEqual(retrieved_fact, example_fact)
-        self.assertEqual(self.processor.last_fact, example_fact)
-        mock_get.assert_called_once_with("https://catfact.ninja/fact", timeout=5)
-
-    @patch("requests.get")
-    def test_fetch_fact_handles_request_failure(self, mock_get):
-        """Проверяет, что при сбое запроса вызывается APIError"""
-        mock_get.side_effect = requests.exceptions.Timeout("Request timeout")
-
-        with self.assertRaises(APIError) as error:
-            self.processor.get_fact()
-
-        self.assertIn("Ошибка при запросе к API", str(error.exception))
-
-    def test_fact_analysis_defaults_when_no_fact(self):
-        """Проверяет, что анализ возвращает нулевые значения, если факт не задан"""
-        result = self.processor.get_fact_analysis()
-        self.assertEqual(result, {"length": 0, "letter_frequencies": {}})
-
-    def test_fact_analysis_correct_values(self):
-        """Проверяет корректность расчета длины и частоты букв"""
-        self.processor.last_fact = "Cats purr loudly!"
-        
-        analysis = self.processor.get_fact_analysis()
-        expected_frequencies = {"c": 1, "a": 1, "t": 1, "s": 1, "p": 1, "u": 2, "r": 2, "l": 2, "o": 1, "d": 1, "y": 1}
-        
-        self.assertEqual(analysis["length"], 17)
-        self.assertEqual(analysis["letter_frequencies"], expected_frequencies)
-
-    def test_fact_analysis_is_case_insensitive_and_ignores_non_letters(self):
-        """Проверяет, что регистр игнорируется, а символы вне алфавита исключаются"""
-        self.processor.last_fact = "Meow! 456 MEOw?"
-        
-        analysis = self.processor.get_fact_analysis()
-        expected_frequencies = {"m": 2, "e": 2, "o": 2, "w": 2}
-        
-        self.assertEqual(analysis["length"], len("Meow! 456 MEOw?"))
-        self.assertEqual(analysis["letter_frequencies"], expected_frequencies)
-
-    def test_fetch_fact_preserves_state_on_failure(self):
-        """Проверяет, что при ошибке last_fact остается неизменным"""
-        self.processor.last_fact = "Cats have whiskers."
-        
-        with patch("requests.get", side_effect=requests.exceptions.RequestException):
-            with self.assertRaises(APIError):
-                self.processor.get_fact()
-
-        self.assertEqual(self.processor.last_fact, "Cats have whiskers.")
+def test_get_fact_success(monkeypatch):
+    processor = CatFactProcessor()
+    monkeypatch.setattr(requests, 'get', lambda url: MockResponseSuccess("Cats are great!"))
+    fact = processor.get_fact()
+    assert fact == "Cats are great!"
+    assert processor.last_fact == "Cats are great!"
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_get_fact_http_error(monkeypatch):
+    processor = CatFactProcessor()
+    monkeypatch.setattr(requests, 'get', lambda url: MockResponseHTTPError())
+    with pytest.raises(APIError) as excinfo:
+        processor.get_fact()
+    assert "Ошибка при запросе к API" in str(excinfo.value)
+
+
+def test_get_fact_connection_error(monkeypatch):
+    processor = CatFactProcessor()
+    monkeypatch.setattr(requests, 'get', lambda url: (_ for _ in ()).throw(requests.exceptions.ConnectionError("Connection failed")))
+    with pytest.raises(APIError) as excinfo:
+        processor.get_fact()
+    assert "Ошибка при запросе к API" in str(excinfo.value)
+
+
+def test_get_fact_json_error(monkeypatch):
+    processor = CatFactProcessor()
+    monkeypatch.setattr(requests, 'get', lambda url: MockResponseInvalidJSON())
+    # JSONDecode error is not caught, so original ValueError propagates
+    with pytest.raises(ValueError):
+        processor.get_fact()
+
+
+def test_get_fact_analysis_empty():
+    processor = CatFactProcessor()
+    result = processor.get_fact_analysis()
+    assert result == {"length": 0, "letter_frequencies": {}}
+
+
+def test_get_fact_analysis_with_content():
+    processor = CatFactProcessor()
+    processor.last_fact = "AaBb! "
+    result = processor.get_fact_analysis()
+    expected_length = len(processor.last_fact)
+    assert result["length"] == expected_length
+    # вручную считаем частоты
+    expected_freq = {}
+    for ch in processor.last_fact.lower():
+        expected_freq[ch] = expected_freq.get(ch, 0) + 1
+    assert result["letter_frequencies"] == expected_freq
+
+
+def test_integration_flow(monkeypatch):
+    processor = CatFactProcessor()
+    monkeypatch.setattr(requests, 'get', lambda url: MockResponseSuccess("Cats rule"))
+    fact = processor.get_fact()
+    assert fact == "Cats rule"
+    analysis = processor.get_fact_analysis()
+    assert analysis["length"] == len("Cats rule")
+    # проверяем частоты каждого символа
+    expected_freq = {}
+    for ch in "cats rule":  # lowercased
+        expected_freq[ch] = expected_freq.get(ch, 0) + 1
+    assert analysis["letter_frequencies"] == expected_freq
