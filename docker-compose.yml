@@ -1,8 +1,10 @@
 version: '3.8'
 
 services:
+  # Сервис баз
   db:
     image: postgres:13
+    container_name: forum-db
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: secret
@@ -10,14 +12,27 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test:
-        - "CMD-SHELL"
-        - "pg_isready -U admin -d forum_logs"
+      test: ["CMD-SHELL", "pg_isready -U admin -d forum_logs"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  #enkins
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+
+    volumes:
+      - jenkins_home:/var/jenkins_home
+
 volumes:
   pgdata:
+  jenkins_home:
