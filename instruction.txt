@@ -1,0 +1,41 @@
+Открыть терминал в корне проекта
+
+собрать образ
+
+docker-compose down
+docker-compose build
+docker-compose up -d
+
+Проверит что все запустилос
+
+docker-compose ps
+docker logs forum-db --tail 5
+
+Открыть дженкинск
+
+http://localhost:8080/
+
+скопировать пароль из контейнера
+
+docker exec -i jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+
+установить плагины
+
+git
+pipeline
+docker pipeline
+
+Добавиьб учетные данные для БД
+
+username: admin
+password: secret
+id: etl-db
+
+Создать джобу
+
+Definition: Pipeline script from SCM
+SCM: Git Repository URL - https://github.com/Zavlabz/big_data-11.03.25.git
+Branch Specifier: */jenkins
+
+собрать сейчас
