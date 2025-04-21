@@ -10,12 +10,6 @@ pipeline {
 
   stages {
     stage('Extract') {
-      agent {
-        docker {
-          image 'postgres:13'
-          args  '--network pythonproject6_default'
-        }
-      }
       steps {
         withCredentials([usernamePassword(
           credentialsId: 'etl-db',
@@ -23,25 +17,23 @@ pipeline {
           passwordVariable: 'DB_PSWD'
         )]) {
           sh '''
-            echo "Extracting logs..."
-            PGPASSWORD=$DB_PSWD psql -h $DB_HOST -U $DB_USER -d $DB_NAME \
-              -c "COPY logs TO STDOUT WITH CSV HEADER" > logs_raw.csv
+            echo "Extracting logs to logs_raw.csv..."
+            PGPASSWORD=$DB_PSWD psql \
+              -h $DB_HOST -U $DB_USER -d $DB_NAME \
+              -c "COPY logs TO STDOUT WITH CSV HEADER" \
+            > logs_raw.csv
           '''
         }
       }
     }
 
     stage('Transform & Load') {
-      agent {
-        docker {
-          image 'python:3.9-slim'
-          args  '--network pythonproject6_default'
-        }
-      }
       steps {
         sh '''
-          echo "Installing Python deps and running aggregation..."
+          echo "Installing Python dependencies..."
+          pip install --upgrade pip
           pip install psycopg2-binary python-dateutil
+          echo "Running aggregation..."
           python aggregate.py "$START" "$END" report.csv
         '''
       }

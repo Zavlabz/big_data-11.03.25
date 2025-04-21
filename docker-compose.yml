@@ -17,9 +17,8 @@ services:
       retries: 5
 
   jenkins:
-    image: jenkins/jenkins:lts
+    build: ./jenkins
     container_name: jenkins
-    privileged: true
     depends_on:
       forum-db:
         condition: service_healthy
@@ -28,8 +27,7 @@ services:
       - "50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker
+      # монтировать сокет Docker Desktop не нужно
 
 volumes:
   pgdata:
